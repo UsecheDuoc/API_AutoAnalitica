@@ -6,8 +6,47 @@ const Producto = require('../models/producto');
 
 //RUTAS PARA OBTENER INFO DE LA API - NO MOVER
 
-// Ruta para buscar productos de manera dinámica por diferentes campos
+//NUEVO
+// Obtener productos con filtros opcionales
+router.get('/', async (req, res) => {
+    try {
+        const query = {};
+
+        if (req.query.marca) query.marca = new RegExp(req.query.marca, 'i');
+        if (req.query.modelo) query.modelo = new RegExp(req.query.modelo, 'i');
+        if (req.query.descuento) query.descuento = { $gte: parseInt(req.query.descuento) };
+        if (req.query.tienda) query.tienda = new RegExp(req.query.tienda, 'i');
+        if (req.query.categoria) query.categoria = new RegExp(req.query.categoria, 'i'); // Filtro de categoría
+
+        const sort = {};
+        if (req.query.sortOrder === 'priceAsc') sort.precio_actual = 1;
+        if (req.query.sortOrder === 'priceDesc') sort.precio_actual = -1;
+        if (req.query.sortOrder === 'nameAsc') sort.nombre = 1;
+        if (req.query.sortOrder === 'nameDesc') sort.nombre = -1;
+
+        const productos = await Producto.find(query).sort(sort);
+        res.json(productos);
+    } catch (error) {
+        console.error("Error al obtener productos con filtros:", error);
+        res.status(500).json({ message: "Error al obtener productos" });
+    }
+});
+
+// Endpoint para obtener modelos por marca
+router.get('/modelos', async (req, res) => {
+    const { marca } = req.query;
+    try {
+        const modelos = await Producto.distinct("modelo", { marca: new RegExp(marca, 'i') });
+        res.json(modelos);
+    } catch (error) {
+        console.error("Error al obtener modelos:", error);
+        res.status(500).json({ error: 'Error al obtener modelos' });
+    }
+});
+
     
+
+
 
 // Crear un nuevo producto
 router.post('/', async (req, res) => {
@@ -90,24 +129,32 @@ router.get('/marca', async (req, res) => {
     }
 });
 
-// Endpoint mejorado para buscar productos similares por varios criterios
+// Endpoint mejorado para buscar productos solo por el campo 'nombre'
 router.get('/buscar-similares', async (req, res) => {
     try {
-        const { marca, modelo, nombre, categoria } = req.query;
+        const { nombre, marca, modelo, categoria, descuento, tienda } = req.query;
 
-        // Crear un filtro de búsqueda dinámico
-        let filtroBusqueda = {};
-        if (marca) filtroBusqueda.marca = new RegExp(marca, 'i');
-        if (modelo) filtroBusqueda.modelo = new RegExp(modelo, 'i');
-        if (nombre) filtroBusqueda.nombre = new RegExp(nombre, 'i');
-        if (categoria) filtroBusqueda.categoria = new RegExp(categoria, 'i');
+        // Crear un filtro de búsqueda que solo aplique a 'nombre' y permita filtros adicionales
+        let filtroBusqueda = {
+            nombre: nombre ? new RegExp(nombre, 'i') : undefined, // Solo aplicar búsqueda en 'nombre'
+            ...(marca && { marca: new RegExp(marca, 'i') }),
+            ...(modelo && { modelo: new RegExp(modelo, 'i') }),
+            ...(categoria && { categoria: new RegExp(categoria, 'i') }),
+            ...(descuento && { descuento: descuento }),
+            ...(tienda && { tienda: new RegExp(tienda, 'i') })
+        };
+
+        // Limpiar campos undefined
+        Object.keys(filtroBusqueda).forEach(
+            key => filtroBusqueda[key] === undefined && delete filtroBusqueda[key]
+        );
 
         const productosSimilares = await Producto.find(filtroBusqueda)
-            .sort({ views: -1 })  // Ordenar por popularidad (puedes ajustar esto según tus criterios)
-            .limit(20);  // Limitar resultados
+            .sort({ views: -1 }) // Ordenar por popularidad u otro criterio
+            .limit(20); // Limitar resultados
 
         if (productosSimilares.length === 0) {
-            return res.status(404).json({ mensaje: "No se encontraron productos que coincidan con los criterios de búsqueda." });
+            return res.status(404).json({ mensaje: "No se encontraron productos que coincidan con la búsqueda." });
         }
 
         res.json(productosSimilares);
@@ -116,6 +163,39 @@ router.get('/buscar-similares', async (req, res) => {
         res.status(500).json({ error: "Error en el servidor al buscar productos." });
     }
 });
+
+// Ejemplo de endpoint en Node.js
+router.get('/productos-con-descuento', async (req, res) => {
+    try {
+        const productos = await Producto.find({}); // Ajusta tu consulta según tus necesidades
+        const productosConDescuento = productos.map(producto => {
+            const lastPrice = producto.historial_precios?.slice(-1)[0]?.precio || producto.precio_actual;
+            const priceDifference = producto.precio_actual - lastPrice;
+            const percentageChange = lastPrice ? ((Math.abs(priceDifference) / lastPrice) * 100).toFixed(2) : 0;
+            
+            // Definir el estado del precio
+            let estado;
+            if (priceDifference < 0) {
+                estado = `Bajó: ${percentageChange}%`;
+            } else if (priceDifference > 0) {
+                estado = `Aumentó: ${percentageChange}%`;
+            } else {
+                estado = `Se mantuvo`;
+            }
+
+            return {
+                ...producto._doc,
+                estado,  // Añade el estado directamente al producto
+            };
+        });
+        res.json(productosConDescuento);
+    } catch (error) {
+        console.error("Error al obtener productos con descuento:", error);
+        res.status(500).json({ error: "Error al obtener productos" });
+    }
+});
+
+
 
 // Actualizar un producto por ID
 router.get('/:id', async (req, res) => {
@@ -235,66 +315,7 @@ router.get('/mas-buscados', async (req, res) => {
     }
 });
 
-// Ruta para buscar productos similares por marca, modelo y nombre, con ajuste en caso de no encontrar coincidencias exactas
-router.get('/buscar-similares', async (req, res) => {
-    try {
-        const { marca, modelo, nombre } = req.query;
 
-        // Verificar que al menos uno de los parámetros esté presente
-        if (!marca && !modelo && !nombre) {
-            return res.status(400).json({ error: "Debe proporcionar al menos uno de los criterios: 'marca', 'modelo' o 'nombre'." });
-        }
-
-        let productosSimilares = [];
-
-        // Nivel 1: Búsqueda completa por marca, modelo y nombre
-        try {
-            let filtroBusqueda = {};
-            if (marca) filtroBusqueda.marca = new RegExp(marca, 'i');
-            if (modelo) filtroBusqueda.modelo = new RegExp(modelo, 'i');
-            if (nombre) filtroBusqueda.nombre = new RegExp(nombre, 'i');
-
-            console.log("Nivel 1 - Filtro:", filtroBusqueda);
-            productosSimilares = await Producto.find(filtroBusqueda);
-        } catch (err) {
-            console.error("Error en la búsqueda de Nivel 1:", err);
-        }
-
-        // Si no se encuentran resultados, reducir criterios de búsqueda
-        if (productosSimilares.length === 0 && marca && modelo) {
-            try {
-                const filtroBusqueda = {
-                    marca: new RegExp(marca, 'i'),
-                    modelo: new RegExp(modelo, 'i')
-                };
-                console.log("Nivel 2 - Filtro:", filtroBusqueda);
-                productosSimilares = await Producto.find(filtroBusqueda);
-            } catch (err) {
-                console.error("Error en la búsqueda de Nivel 2:", err);
-            }
-        }
-
-        if (productosSimilares.length === 0 && marca) {
-            try {
-                const filtroBusqueda = { marca: new RegExp(marca, 'i') };
-                console.log("Nivel 3 - Filtro:", filtroBusqueda);
-                productosSimilares = await Producto.find(filtroBusqueda);
-            } catch (err) {
-                console.error("Error en la búsqueda de Nivel 3:", err);
-            }
-        }
-
-        // Si aún no se encuentran resultados, retornar mensaje 404
-        if (productosSimilares.length === 0) {
-            return res.status(404).json({ mensaje: "No se encontraron productos similares que coincidan con los criterios de búsqueda." });
-        }
-
-        res.json(productosSimilares);
-    } catch (error) {
-        console.error("Error al procesar la solicitud:", error);
-        res.status(500).json({ error: "Ocurrió un error en el servidor al buscar productos similares." });
-    }
-});
 
 // Endpoint para buscar productos por marca
 router.get('/marca', async (req, res) => {
