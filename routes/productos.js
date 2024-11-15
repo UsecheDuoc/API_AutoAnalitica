@@ -169,7 +169,7 @@ router.get('/productos-con-descuento', async (req, res) => {
     try {
         const productos = await Producto.find({}); // Ajusta tu consulta según tus necesidades
         const productosConDescuento = productos.map(producto => {
-            const lastPrice = producto.historial_precios?.slice(-2)[0]?.precio || producto.precio_actual;
+            const lastPrice = producto.historial_precios?.slice(-3)[0]?.precio || producto.precio_actual;
             const priceDifference = producto.precio_actual - lastPrice;
             const percentageChange = lastPrice ? ((Math.abs(priceDifference) / lastPrice) * 100).toFixed(2) : 0;
             
