@@ -12,7 +12,7 @@ app.use(cors({
 }));
 
 // Conexión a MongoDB
-mongoose.connect('mongodb+srv://jucoronel:AivF1YaQSkx3NV4Q@autoanalitica.wh5c6.mongodb.net/autosanalitica', {
+mongoose.connect('mongodb+srv://jucoronel:AivF1YaQSkx3NV4Q@autoanalitica.wh5c6.mongodb.net/autosanalitica_limpios', {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 }).then(() => console.log('Conectado a MongoDB'))

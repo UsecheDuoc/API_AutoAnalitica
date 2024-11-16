@@ -74,7 +74,7 @@ router.put('/addImageUrl', async (req, res) => {
     try {
        await client.connect();
        const database = client.db('autosanalitica');
-       const collection = database.collection('productos');
+       const collection = database.collection('productos_limpios');
  
        // Actualiza todos los documentos agregando el campo "imagenUrl" con el valor proporcionado
        const result = await collection.updateMany(
