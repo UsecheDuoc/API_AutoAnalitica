@@ -15,7 +15,7 @@ const productoSchema = new mongoose.Schema({
             precio: Number
         }
     ],
-    views: { type: Number, default: 0 } // Campo para contar las vistas
-});
+    views: { type: Number, default: 0 }, // Campo para contar las vistas
+}, { collection: 'productos_limpios' }); // Aquí especificas la colección
 
 module.exports = mongoose.model('Producto', productoSchema);
