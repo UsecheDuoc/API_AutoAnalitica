@@ -2,18 +2,24 @@ const express = require("express");
 const cors = require("cors");
 const productosRouter = require("./routes/productos");
 const graficoRoutes = require("./routes/grafico");
+const mongoose = require("mongoose");
 
 const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: "3000", // Cambia esto según el puerto de tu frontend
+    origin: "*", // Cambia esto según el puerto de tu frontend
   })
 );
 
 // Usar las rutas de productos y gráficos
 app.use("/api/productos", productosRouter);
 app.use("/grafico", graficoRoutes);
+
+app.get("/", (req, res) => {
+  res.send("API desplegada correctamente en Render");
+});
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en el puerto ${PORT}`));
