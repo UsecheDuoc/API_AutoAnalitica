@@ -2,6 +2,8 @@
 const express = require('express');
 const router = express.Router();
 const Producto = require('../models/producto');
+const app = express();
+const PORT = 3000;
 
 
 //RUTAS PARA OBTENER INFO DE LA API - NO MOVER
@@ -373,6 +375,24 @@ router.get('/buscar-similares', async (req, res) => {
         res.status(500).json({ error: "Ocurrió un error en el servidor al buscar productos similares." });
     }
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+//MAS ENDPOINTS
+
+
+
+
 
 // Exportar el enrutador
 module.exports = router;
