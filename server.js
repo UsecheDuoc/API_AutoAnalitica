@@ -2,27 +2,43 @@ const express = require("express");
 const cors = require("cors");
 const productosRouter = require("./routes/productos");
 const graficoRoutes = require("./routes/grafico");
-const mongoose = require("mongoose");
+const { mainDbConnection, machineResulConnection } = require("./db");
 
 const app = express();
 app.use(express.json());
-app.use(
-  cors({
-    origin: "*", // Cambia esto según el puerto de tu frontend
-  })
-);
+app.use(cors({ origin: "*" }));
 
-// Usar las rutas de productos y gráficos
+console.log("Registrando rutas de productos...");
 app.use("/api/productos", productosRouter);
+
+console.log("Registrando rutas de gráficos...");
 app.use("/grafico", graficoRoutes);
 
+// Usar las rutas
+app.use("/productos", productosRouter);
+app.use("/grafico", graficoRoutes);
+
+// Ruta base
 app.get("/", (req, res) => {
-  res.send("API desplegada correctamente en Render");
+  res.send("API funcionando correctamente en Render");
 });
 
 
+
+// Middleware para capturar errores
+app.use((err, req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+
+  console.error(`Error en ${req.method} ${req.url}:`, err.stack);
+  res.status(500).send("Error interno del servidor");
+});
+
+// Iniciar servidor
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor escuchando en el puerto ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Servidor escuchando en el puerto ${PORT}`);
+});
 
 
 
