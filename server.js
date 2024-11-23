@@ -8,15 +8,14 @@ const app = express();
 app.use(express.json());
 app.use(cors({ origin: "*" }));
 
+// Usar las rutas
 console.log("Registrando rutas de productos...");
-app.use("/api/productos", productosRouter);
+app.use("/productos", productosRouter);
 
 console.log("Registrando rutas de gráficos...");
 app.use("/grafico", graficoRoutes);
 
-// Usar las rutas
-app.use("/productos", productosRouter);
-app.use("/grafico", graficoRoutes);
+
 
 // Ruta base
 app.get("/", (req, res) => {

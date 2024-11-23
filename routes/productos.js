@@ -15,6 +15,32 @@ const Producto = mainDbConnection.model(
     new mongoose.Schema({}, { strict: false })
 );
 
+// En tu controlador de productos, por ejemplo, routes/productos.js
+const getProductos = async (req, res) => {
+    try {
+        const { categoria, marca, modelo } = req.query;
+
+        // Filtra productos según los parámetros recibidos
+        const query = {};
+        if (categoria) query.categoria = categoria;
+        if (marca) query.marca = marca;
+        if (modelo) query.modelo = modelo;
+
+        const productos = await Producto.find(query); // Suponiendo que tienes un modelo de mongoose llamado Producto
+        if (!productos.length) {
+            return res.status(404).json({ message: "No se encontraron productos." });
+        }
+
+        return res.status(200).json(productos);
+    } catch (error) {
+        console.error("Error al obtener productos:", error);
+        return res.status(500).json({ message: "Error interno del servidor." });
+    }
+};
+
+// Asegúrate de asociar esta función a la ruta en el router
+router.get('/productos', getProductos);
+
 
 //NUEVO
 
@@ -45,6 +71,7 @@ router.get("/", async (req, res) => {
   
   // Endpoint para obtener productos por categoría
   router.get("/categoria", async (req, res) => {
+    console.log("Categoria 1");
     try {
       const { categoria } = req.query;
       const productos = await Producto.find({ categoria: new RegExp(categoria, "i") });
@@ -104,6 +131,7 @@ router.get('/marca', async (req, res) => {
 
 // Endpoint para buscar productos por categoría
 router.get('/categoria', async (req, res) => {
+    console.log("Categoria 2");
     const { categoria } = req.query;
     try {
         const productos = await Producto.find({ categoria: new RegExp(categoria, 'i') });
