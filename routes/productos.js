@@ -7,39 +7,86 @@ const mongoose = require("mongoose");
 
 const { mainDbConnection } = require("../db"); // Importar la conexión desde db.js
 const analisisCategoriasSchema = new mongoose.Schema({}, { strict: false });
+const { machineResulConnection } = require("../db"); // Importar la conexión desde db.js
+const prediccionPreciosSchema = new mongoose.Schema({}, { strict: false })
 
 
 //coleccion de empresas
-const Producto = mainDbConnection.model(
-    "productos_limpios",
-    new mongoose.Schema({}, { strict: false })
-);
+    const Producto = mainDbConnection.model(
+        "productos_limpios",
+        new mongoose.Schema({}, { strict: false })
+    );
 
-// En tu controlador de productos, por ejemplo, routes/productos.js
-const getProductos = async (req, res) => {
-    try {
-        const { categoria, marca, modelo } = req.query;
+    const cliente = mainDbConnection.model(
+        "Cliente", // Nombre del modelo
+        new mongoose.Schema({}, { strict: false }),
+        "Cliente" // Nombre explícito de la colección
+    );
 
-        // Filtra productos según los parámetros recibidos
-        const query = {};
-        if (categoria) query.categoria = categoria;
-        if (marca) query.marca = marca;
-        if (modelo) query.modelo = modelo;
 
-        const productos = await Producto.find(query); // Suponiendo que tienes un modelo de mongoose llamado Producto
-        if (!productos.length) {
-            return res.status(404).json({ message: "No se encontraron productos." });
+
+    // Endpoint para agregar un cliente
+    router.post('/notificaciones', async (req, res) => {
+        try {
+            // Extraer datos del body
+            const { marca, modelo, correo } = req.body;
+
+            // Validar que los campos necesarios estén presentes
+            if (!marca || !modelo || !correo) {
+                return res.status(400).json({ message: 'Faltan datos obligatorios: marca, modelo o correo' });
+            }
+
+            // Actualizar o insertar un cliente en la colección existente
+            const clienteActualizado = await cliente.findOneAndUpdate(
+                { correo }, // Criterio de búsqueda: usa el correo como identificador único
+                {
+                    $set: {
+                        marca,
+                        modelo,
+                        fecha_ingreso: new Date().toISOString().split('T')[0] // Fecha actual en formato YYYY-MM-DD
+                    }
+                },
+                { new: true, upsert: true } // 'new': devuelve el documento actualizado, 'upsert': inserta si no existe
+            );
+
+            res.status(200).json({
+                message: 'Cliente agregado o actualizado con éxito',
+                data: clienteActualizado
+            });
+        } catch (error) {
+            console.error('Error al agregar o actualizar cliente:', error);
+            res.status(500).json({
+                message: 'Error al agregar o actualizar el cliente',
+                error: error.message
+            });
         }
+    });
 
-        return res.status(200).json(productos);
-    } catch (error) {
-        console.error("Error al obtener productos:", error);
-        return res.status(500).json({ message: "Error interno del servidor." });
-    }
-};
+    // En tu controlador de productos, por ejemplo, routes/productos.js
+    const getProductos = async (req, res) => {
+        try {
+            const { categoria, marca, modelo } = req.query;
 
-// Asegúrate de asociar esta función a la ruta en el router
-router.get('/productos', getProductos);
+            // Filtra productos según los parámetros recibidos
+            const query = {};
+            if (categoria) query.categoria = categoria;
+            if (marca) query.marca = marca;
+            if (modelo) query.modelo = modelo;
+
+            const productos = await Producto.find(query); // Suponiendo que tienes un modelo de mongoose llamado Producto
+            if (!productos.length) {
+                return res.status(404).json({ message: "No se encontraron productos." });
+            }
+
+            return res.status(200).json(productos);
+        } catch (error) {
+            console.error("Error al obtener productos:", error);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+    };
+
+    // Asegúrate de asociar esta función a la ruta en el router
+    router.get('/productos', getProductos);
 
 
 //NUEVO
@@ -107,27 +154,27 @@ router.get("/", async (req, res) => {
   });
   
 // Endpoint para buscar productos por marca
-router.get('/marca', async (req, res) => {
-    const { nombre } = req.query; // Obtener el nombre de la marca desde la consulta
+    router.get('/marca', async (req, res) => {
+        const { nombre } = req.query; // Obtener el nombre de la marca desde la consulta
 
-    if (!nombre) {
-        return res.status(400).json({ error: "Debe proporcionar el nombre de la marca." });
-    }
-
-    try {
-        // Filtramos los productos que tienen una marca que coincide (insensible a mayúsculas)
-        const productosPorMarca = await Producto.find({ marca: new RegExp(`^${nombre}$`, 'i') });
-
-        if (productosPorMarca.length === 0) {
-            return res.status(404).json({ mensaje: "No se encontraron productos para la marca especificada." });
+        if (!nombre) {
+            return res.status(400).json({ error: "Debe proporcionar el nombre de la marca." });
         }
 
-        res.status(200).json(productosPorMarca);
-    } catch (error) {
-        console.error("Error al buscar productos por marca:", error);
-        res.status(500).json({ error: 'Error al obtener productos por marca' });
-    }
-});
+        try {
+            // Filtramos los productos que tienen una marca que coincide (insensible a mayúsculas)
+            const productosPorMarca = await Producto.find({ marca: new RegExp(`^${nombre}$`, 'i') });
+
+            if (productosPorMarca.length === 0) {
+                return res.status(404).json({ mensaje: "No se encontraron productos para la marca especificada." });
+            }
+
+            res.status(200).json(productosPorMarca);
+        } catch (error) {
+            console.error("Error al buscar productos por marca:", error);
+            res.status(500).json({ error: 'Error al obtener productos por marca' });
+        }
+    });
 
 // Endpoint para buscar productos por categoría
 router.get('/categoria', async (req, res) => {
@@ -518,7 +565,6 @@ router.get('/buscar-similares', async (req, res) => {
         res.status(500).json({ error: "Ocurrió un error en el servidor al buscar productos similares." });
     }
 });
-
 
 
 

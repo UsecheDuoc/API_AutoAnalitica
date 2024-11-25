@@ -7,6 +7,8 @@ const router = express.Router();
 const analisisCategoriasSchema = new mongoose.Schema({}, { strict: false });
 const AnalisisEmpresasSchema = new mongoose.Schema({}, { strict: false })
 const AnalisisPreciosSchema = new mongoose.Schema({}, { strict: false })
+const MetodoCodoSchema = new mongoose.Schema({}, { strict: false })
+const prediccionPreciosSchema = new mongoose.Schema({}, { strict: false })
 
 //Coleccion de categorias
 const AnalisisCategorias = machineResulConnection.model(
@@ -26,6 +28,16 @@ const AnalisisPrecios = machineResulConnection.model(
     AnalisisPreciosSchema
   );
   
+  //Grafico metodo codo
+  const MetodoCodo = machineResulConnection.model(
+    "Metodo_Codo", // Reemplaza con el nombre real de la colección si es diferente
+    MetodoCodoSchema
+  );
+
+  const Prediccion = machineResulConnection.model(
+    'Predicciones',
+    prediccionPreciosSchema  
+);
 
 // Endpoint para obtener el último registro de la colección `analisis_categorias`
 router.get("/ultimo", async (req, res) => {
@@ -104,8 +116,73 @@ router.get("/histograma-precios", async (req, res) => {
   }
 });
   
+
+  // Endpoint para obtener los datos de Metodo_Codo
+router.get("/metodo_codo", async (req, res) => {
+  try {
+    console.log("Conectando a la colección Metodo_Codo...");
+    const db = machineResulConnection.useDb("MachineResul");
+    const collection = db.collection("Metodo_Codo");
+
+    // Realiza una consulta directa
+    const documentos = await collection.find({}).toArray();//Esto funciona para que busque los datos mas directos
+
+    // Si no hay documentos, responde con un mensaje
+    if (!documentos || documentos.length === 0) {
+        console.log("No se encontraron documentos en Metodo_Codo");
+        return res.status(404).json({ error: "No se encontraron datos en la colección Metodo_Codo" });
+    }
+
+
+    console.log("Datos obtenidos de Metodo_Codo:", documentos);
+    res.status(200).json(documentos);
+  } catch (error) {
+      console.error("Error al obtener los datos de Metodo_Codo:", error);
+      res.status(500).json({ error: "Error al procesar la solicitud" });
+  }
+});
   
   
+
+//PRUEBA PARA TRAER PRODUCTOS DE PRECIOS CON PREDICCION JUNTOS
+// Modelos para ambas colecciones
   
+  
+  // Endpoint para obtener predicciones por _id de producto
+  router.get('/predicciones/:id', async (req, res) => {
+    const { id } = req.params; // Obtén el _id del producto desde los parámetros de la URL
+    console.log(id)
+    try {
+      // Busca predicciones que coincidan con el _id del producto
+      const predicciones = await Prediccion.find({_id: id});
+        console.log(predicciones)
+
+      // Verifica si hay predicciones
+      if (predicciones.length === 0) {
+        return res.status(404).json({
+          message: `No se encontraron predicciones para el producto con id: ${id}`,
+        });
+      }
+  
+      // Devuelve las predicciones encontradas
+      res.status(200).json({
+        message: `Predicciones encontradas para el producto con id: ${id}`,
+        data: predicciones.map((prediccion) => ({
+          fecha_futura: prediccion.fecha_futura,
+          precio_futuro: prediccion.precio_futuro,
+        })),
+      });
+    } catch (error) {
+      console.error('Error al buscar predicciones:', error);
+      res.status(500).json({
+        message: 'Error al buscar predicciones.',
+        error: error.message,
+      });
+    }
+  });
+
+
+
+
 
 module.exports = router;
