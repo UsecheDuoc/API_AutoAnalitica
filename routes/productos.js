@@ -4,6 +4,7 @@ const router = express.Router();
 //const Producto = require('../models/producto');
 const app = express();
 const mongoose = require("mongoose");
+const { ObjectId } = require("mongodb"); // Importa ObjectId para manejar el _id de MongoDB
 
 const { mainDbConnection } = require("../db"); // Importar la conexión desde db.js
 const analisisCategoriasSchema = new mongoose.Schema({}, { strict: false });
@@ -336,8 +337,35 @@ router.put('/addImageUrl', async (req, res) => {
     }
  });
  
+//Endpoint para traer prediccion de productos de la coleccion "precio_futuro"
+router.get("/prediccion/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
 
+        // Verificar si el ID es válido
+        if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ message: "ID inválido" });
+        }
 
+        console.log('')
+        // Buscar predicciones en la colección de predicciones
+        const predicciones = await mainDbConnection.collection("precio_futuro")
+        .findOne({ _id: new ObjectId(id) }); // Convertir id a ObjectId
+    
+            console.log('Encontré:',predicciones)
+
+        // Si no se encuentra la predicción
+        if (!predicciones) {
+            return res.status(404).json({ message: "Predicción no encontrada" });
+        }
+    
+        // Responder con las predicciones
+        res.json(predicciones);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Error al obtener la predicción" });
+    }
+  });
 
 
 // Endpoint mejorado para buscar productos solo por el campo 'nombre'
@@ -352,7 +380,7 @@ router.get('/buscar-similares', async (req, res) => {
             ...(modelo && { modelo: new RegExp(modelo, 'i') }),
             ...(categoria && { categoria: new RegExp(categoria, 'i') }),
             ...(descuento && { descuento: descuento }),
-            ...(tienda && { tienda: new RegExp(tienda, 'i') })
+            ...(tienda && { empresa_procedencia: new RegExp(tienda, 'i') })
         };
 
         // Limpiar campos undefined
