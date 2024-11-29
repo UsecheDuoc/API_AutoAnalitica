@@ -371,7 +371,8 @@ router.get("/prediccion/:id", async (req, res) => {
 // Endpoint mejorado para buscar productos solo por el campo 'nombre'
 router.get('/buscar-similares', async (req, res) => {
     try {
-        const { nombre, marca, modelo, categoria, descuento, tienda } = req.query;
+        console.log('Primera')
+        const { nombre, marca, modelo, categoria, descuento, empresa_procedencia } = req.query;
 
         // Crear un filtro de búsqueda que solo aplique a 'nombre' y permita filtros adicionales
         let filtroBusqueda = {
@@ -380,7 +381,7 @@ router.get('/buscar-similares', async (req, res) => {
             ...(modelo && { modelo: new RegExp(modelo, 'i') }),
             ...(categoria && { categoria: new RegExp(categoria, 'i') }),
             ...(descuento && { descuento: descuento }),
-            ...(tienda && { empresa_procedencia: new RegExp(tienda, 'i') })
+            ...(empresa_procedencia && { empresa_procedencia: new RegExp(empresa_procedencia, 'i') })
         };
 
         // Limpiar campos undefined
@@ -562,6 +563,8 @@ router.get('/marca', async (req, res) => {
 // Endpoint para buscar productos similares por marca, modelo y nombre
 router.get('/buscar-similares', async (req, res) => {
     try {
+        console.log('Segunda')
+
         const { marca, modelo, nombre } = req.query;
         if (!marca && !modelo && !nombre) {
             return res.status(400).json({ error: "Debe proporcionar al menos uno de los criterios: 'marca', 'modelo' o 'nombre'." });
