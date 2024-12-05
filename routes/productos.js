@@ -12,7 +12,7 @@ const { machineResulConnection } = require("../db"); // Importar la conexión de
 const prediccionPreciosSchema = new mongoose.Schema({}, { strict: false })
 
 
-//coleccion de empresas
+//coleccion de productos
     const Producto = mainDbConnection.model(
         "productos_limpios",
         new mongoose.Schema({}, { strict: false })
@@ -24,6 +24,10 @@ const prediccionPreciosSchema = new mongoose.Schema({}, { strict: false })
         "Cliente" // Nombre explícito de la colección
     );
 
+    const Destacados = mainDbConnection.model(
+        "productos_destacados",
+        new mongoose.Schema({}, { strict: false })
+    );
 
 
     // Endpoint para agregar un cliente
@@ -88,6 +92,36 @@ const prediccionPreciosSchema = new mongoose.Schema({}, { strict: false })
 
     // Asegúrate de asociar esta función a la ruta en el router
     router.get('/productos', getProductos);
+
+
+// Endpoint para obtener los datos de graficos_interactivos
+router.get("/graficos_interactivos", async (req, res) => {
+    try {
+      console.log("Conectando a la colección graficos_interactivos...");
+      const db = mainDbConnection.useDb("autosanalitica_Limpios");
+      const collection = db.collection("graficos_interactivos");
+  
+      // Realiza una consulta directa
+      const documentos = await collection.find({}).toArray();
+  
+      // Si no hay documentos, responde con un mensaje
+      if (!documentos || documentos.length === 0) {
+        console.log("No se encontraron documentos en graficos_interactivos");
+        return res
+          .status(404)
+          .json({ error: "No se encontraron datos en la colección graficos_interactivos" });
+      }
+  
+      console.log("Datos obtenidos de graficos_interactivos:", documentos);
+      res.status(200).json(documentos);
+    } catch (error) {
+      console.error("Error al obtener los datos de graficos_interactivos:", error);
+      res.status(500).json({ error: "Error al procesar la solicitud" });
+    }
+  });
+  
+
+
 
 
 //NUEVO
@@ -191,7 +225,7 @@ router.get('/categoria', async (req, res) => {
 });
 
 // Endpoint para productos con mayor descuento (Productos destacados)
-router.get("/destacados-descuento", async (req, res) => {
+/* router.get("/destacados-descuento", async (req, res) => {
     try {
       const { categoria } = req.headers; // Tomar el filtro de categoría desde los headers
   
@@ -238,7 +272,37 @@ router.get("/destacados-descuento", async (req, res) => {
       console.error("Error al obtener productos destacados:", error);
       res.status(500).json({ message: "Error interno del servidor" });
     }
-  });
+  }); */
+
+  router.get("/destacados-descuento", async (req, res) => {
+    try {
+        // Obtener todos los productos de la colección productos_destacados
+        const productos = await Destacados.find({});
+
+        // Calcular el descuento relativo para cada producto
+        const productosConDescuento = productos.map((producto) => {
+            const penultimoPrecio = producto.historial_precios?.[producto.historial_precios.length - 1]?.precio || 0;
+            const precioActual = producto.precio_actual;
+
+            // Calcular descuento relativo
+            const descuentoRelativo = penultimoPrecio
+                ? ((penultimoPrecio - precioActual) / penultimoPrecio) * 100
+                : 0;
+
+            return {
+                ...producto.toObject(), // Convertir el documento de MongoDB a un objeto
+                descuentoRelativo: descuentoRelativo > 0 ? descuentoRelativo : 0, // Evitar descuentos negativos
+            };
+        });
+
+        // Devolver todos los productos con el descuento calculado
+        res.json(productosConDescuento);
+    } catch (error) {
+        console.error("Error al obtener productos destacados:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+});
+
 
 
 
@@ -290,7 +354,6 @@ router.get("/prueba", async (req, res) => {
     }
   });
   
-
 // Crear un nuevo producto
 router.post('/', async (req, res) => {
     try {
@@ -367,7 +430,6 @@ router.get("/prediccion/:id", async (req, res) => {
     }
   });
 
-
 // Endpoint mejorado para buscar productos solo por el campo 'nombre'
 router.get('/buscar-similares', async (req, res) => {
     try {
@@ -407,33 +469,19 @@ router.get('/buscar-similares', async (req, res) => {
 // Ejemplo de endpoint en Node.js
 router.get('/productos-con-descuento', async (req, res) => {
     try {
-        const productos = await Producto.find({}); // Ajusta tu consulta según tus necesidades
-        const productosConDescuento = productos.map(producto => {
-            const lastPrice = producto.historial_precios?.slice(-3)[0]?.precio || producto.precio_actual;
-            const priceDifference = producto.precio_actual - lastPrice;
-            const percentageChange = lastPrice ? ((Math.abs(priceDifference) / lastPrice) * 100).toFixed(2) : 0;
-            
-            // Definir el estado del precio
-            let estado;
-            if (priceDifference < 0) {
-                estado = `Bajó: ${percentageChange}%`;
-            } else if (priceDifference > 0) {
-                estado = `Aumentó: ${percentageChange}%`;
-            } else {
-                estado = `Se mantuvo`;
-            }
+        console.log('Entro a productos-con-descuento')
+        // Obtener todos los productos destacados usando el modelo definido
+        const productos = await Destacados.find({});
 
-            return {
-                ...producto._doc,
-                estado,  // Añade el estado directamente al producto
-            };
-        });
-        res.json(productosConDescuento);
+
+
+        res.json(productos);
     } catch (error) {
-        console.error("Error al obtener productos con descuento:", error);
+        console.error("Error al obtener productos con descuento:", error);  
         res.status(500).json({ error: "Error al obtener productos" });
     }
 });
+
 
 // Endpoint para obtener los detalles de un producto y aumentar vistas
 router.get('/:id', async (req, res) => {
@@ -454,7 +502,6 @@ router.get('/:id', async (req, res) => {
     }
   });
   
-
 // Eliminar un producto por ID
 router.delete('/:id', async (req, res) => {
     try {
@@ -466,7 +513,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Endpoint para buscar productos similares
-router.get('/similares', async (req, res) => {  // Asegurarse que la ruta coincida
+router.get('/similaress', async (req, res) => {  // Asegurarse que la ruta coincida
     try {
         const { id } = req.query;
         const currentProduct = await Producto.findById(id);  // Cambiar 'Product' a 'Producto'
@@ -489,8 +536,6 @@ router.get('/similares', async (req, res) => {  // Asegurarse que la ruta coinci
         res.status(500).json({ message: 'Error al buscar productos similares' });
     }
 });
-
-
 
 // Endpoint para obtener productos relacionados
 router.get('/relacionados/:id', async (req, res) => {
@@ -599,6 +644,40 @@ router.get('/buscar-similares', async (req, res) => {
 
 
 
+router.get('/similares-por-categoria/:id', async (req, res) => {
+    try {
+        const { id } = req.params; // Cambiar a req.params para obtener el ID
+
+        console.log('Entro a similares por categorias')
+        console.log("ID recibido:", id);
+
+        // Validar si el ID es un ObjectId válido
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'ID del producto no es válido' });
+        }
+
+        const currentProduct = await Producto.findById(id); // Buscar el producto actual
+        if (!currentProduct) {
+            return res.status(404).json({ message: 'Producto no encontrado' });
+        }
+        console.log("Producto actual encontrado:", currentProduct);
+        console.log("Categoría del producto:", currentProduct?.categoria);
+
+        // Buscar productos de la misma categoría, excluyendo el producto actual
+        const similarProducts = await Producto.find({
+            _id: { $ne: currentProduct._id },
+            categoria: currentProduct.categoria
+        }).limit(3);
+        if (similarProducts.length === 0) {
+            return res.status(200).json({ message: 'No se encontraron productos similares en la misma categoría' });
+        }
+
+        res.json(similarProducts);
+    } catch (error) {
+        console.error("Error al buscar productos por categoría:", error);
+        res.status(500).json({ error: "Ocurrió un error en el servidor al buscar productos por categoría." });
+    }
+});
 
 
 

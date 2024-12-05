@@ -144,6 +144,13 @@ router.get("/metodo_codo", async (req, res) => {
   
   
 
+
+
+
+
+
+
+
 //PRUEBA PARA TRAER PRODUCTOS DE PRECIOS CON PREDICCION JUNTOS
 // Modelos para ambas colecciones
   
